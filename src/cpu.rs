@@ -37,7 +37,7 @@ impl CPU {
 
             match opcode {
                 OpCode::LDA => {
-                    let param = program[self.program_counter as usize + 1];
+                    let param = program[self.program_counter as usize];
                     self.program_counter += 1;
                     self.a = param;
 
@@ -61,5 +61,32 @@ impl CPU {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lda_works_immediate() {
+        let mut cpu = CPU::new();
+        let program = vec![0xa9, 0x05, 0x00];
+        cpu.interpret(program);
+
+        assert_eq!(cpu.a, 0x05);
+        // check zero and negative flags aren't set
+        assert_eq!(cpu.status & 0b0000_0010, 0b0000_0000);
+        assert_eq!(cpu.status & 0b1000_0000, 0b0000_0000);
+    }
+
+    #[test]
+    fn test_lda_works_zero() {
+        let mut cpu = CPU::new();
+        let program = vec![0xa9, 0x00, 0x00];
+        cpu.interpret(program);
+
+        assert_eq!(cpu.a, 0);
+        assert_eq!(cpu.status & 0b00_0010, 0b0000_0010);
     }
 }
