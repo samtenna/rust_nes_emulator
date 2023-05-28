@@ -22,6 +22,7 @@ pub struct CPU {
     pub x: u8,
     pub status: u8,
     pub program_counter: u16,
+    memory: [u8; 0xffff],
 }
 
 impl CPU {
@@ -31,7 +32,26 @@ impl CPU {
             x: 0,
             status: 0,
             program_counter: 0,
+            memory: [0; 0xffff],
         }
+    }
+
+    fn mem_read(&self, addr: u16) -> u8 {
+        self.memory[addr as usize]
+    }
+
+    fn mem_write(&mut self, addr: u16, value: u8) {
+        self.memory[addr as usize] = value;
+    }
+
+    pub fn load_and_run(&mut self, program: Vec<u8>) {
+        self.load(program);
+        self.run();
+    }
+
+    pub fn load(&mut self, program: Vec<u8>) {
+        self.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
+        self.program_counter = 0x8000;
     }
 
     fn lda(&mut self, value: u8) {
@@ -66,16 +86,14 @@ impl CPU {
         }
     }
 
-    pub fn interpret(&mut self, program: Vec<u8>) {
-        self.program_counter = 0;
-
+    pub fn run(&mut self) {
         loop {
-            let opcode = OpCode::from_u8(program[self.program_counter as usize]);
+            let opcode = OpCode::from_u8(self.mem_read(self.program_counter));
             self.program_counter += 1;
 
             match opcode {
                 OpCode::LDA => {
-                    let param = program[self.program_counter as usize];
+                    let param = self.mem_read(self.program_counter);
                     self.program_counter += 1;
                     self.lda(param);
                 }
@@ -95,7 +113,7 @@ mod tests {
     fn test_lda_works_immediate() {
         let mut cpu = CPU::new();
         let program = vec![0xa9, 0x05, 0x00];
-        cpu.interpret(program);
+        cpu.load_and_run(program);
 
         assert_eq!(cpu.a, 0x05);
         // check zero and negative flags aren't set
@@ -107,7 +125,7 @@ mod tests {
     fn test_lda_works_zero() {
         let mut cpu = CPU::new();
         let program = vec![0xa9, 0x00, 0x00];
-        cpu.interpret(program);
+        cpu.load_and_run(program);
 
         assert_eq!(cpu.a, 0);
         assert_eq!(cpu.status & 0b0000_0010, 0b0000_0010);
@@ -117,7 +135,7 @@ mod tests {
     fn test_tax_works() {
         let mut cpu = CPU::new();
         let program = vec![0xa9, 0x69, 0xaa, 0x00];
-        cpu.interpret(program);
+        cpu.load_and_run(program);
 
         assert_eq!(cpu.x, 0x69);
         assert_eq!(cpu.status & 0b0000_0010, 0b0000_0000);
@@ -128,7 +146,7 @@ mod tests {
     fn test_inx_works() {
         let mut cpu = CPU::new();
         let program = vec![0xe8, 0x00];
-        cpu.interpret(program);
+        cpu.load_and_run(program);
 
         assert_eq!(cpu.x, 0x01);
         assert_eq!(cpu.status & 0b0000_0010, 0b0000_0000);
@@ -138,7 +156,7 @@ mod tests {
     #[test]
     fn test_5_ops_working_together() {
         let mut cpu = CPU::new();
-        cpu.interpret(vec![0xa9, 0xc0, 0xaa, 0xe8, 0x00]);
+        cpu.load_and_run(vec![0xa9, 0xc0, 0xaa, 0xe8, 0x00]);
 
         assert_eq!(cpu.x, 0xc1)
     }
@@ -147,7 +165,7 @@ mod tests {
     fn test_inx_overflow() {
         let mut cpu = CPU::new();
         cpu.x = 0xff;
-        cpu.interpret(vec![0xe8, 0xe8, 0x00]);
+        cpu.load_and_run(vec![0xe8, 0xe8, 0x00]);
 
         assert_eq!(cpu.x, 1)
     }
