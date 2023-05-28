@@ -32,6 +32,33 @@ impl CPU {
         }
     }
 
+    fn lda(&mut self, value: u8) {
+        self.a = value;
+        self.update_zero_and_negative_flags(value);
+    }
+
+    fn tax(&mut self) {
+        self.x = self.a;
+        self.update_zero_and_negative_flags(self.x);
+    }
+
+    fn update_zero_and_negative_flags(&mut self, result: u8) {
+        // second LSB is the zero flag
+        if result == 0 {
+            self.status = self.status | 0b0000_0010;
+        } else {
+            self.status = self.status & 0b1111_1101;
+        }
+
+        // MSB is negative flag
+        // if the new value of a is negative, ensure that the negative flag is set
+        if result & 0b1000_0000 != 0 {
+            self.status = self.status | 0b1000_0000;
+        } else {
+            self.status = self.status & 0b0111_1111;
+        }
+    }
+
     pub fn interpret(&mut self, program: Vec<u8>) {
         self.program_counter = 0;
 
@@ -43,41 +70,10 @@ impl CPU {
                 OpCode::LDA => {
                     let param = program[self.program_counter as usize];
                     self.program_counter += 1;
-                    self.a = param;
-
-                    // second LSB is the zero flag
-                    if self.a == 0 {
-                        self.status = self.status | 0b0000_0010;
-                    } else {
-                        self.status = self.status & 0b1111_1101;
-                    }
-
-                    // MSB is negative flag
-                    // if the new value of a is negative, ensure that the negative flag is set
-                    if self.a & 0b1000_0000 != 0 {
-                        self.status = self.status | 0b1000_0000;
-                    } else {
-                        self.status = self.status & 0b0111_1111;
-                    }
+                    self.lda(param);
                 }
-                OpCode::TAX => {
-                    self.x = self.a;
-
-                    if self.x == 0 {
-                        self.status = self.status | 0b0000_0010;
-                    } else {
-                        self.status = self.status & 0b1111_1101;
-                    }
-
-                    if self.x & 0b1000_0000 != 0 {
-                        self.status = self.status | 0b1000_0000;
-                    } else {
-                        self.status = self.status & 0b0111_1111;
-                    }
-                }
-                OpCode::BRK => {
-                    return;
-                }
+                OpCode::TAX => self.tax(),
+                OpCode::BRK => return,
             }
         }
     }
