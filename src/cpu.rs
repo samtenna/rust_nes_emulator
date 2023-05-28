@@ -45,8 +45,8 @@ impl CPU {
     }
 
     fn inx(&mut self) {
-        self.a += 1;
-        self.update_zero_and_negative_flags(self.a);
+        self.x = self.x.wrapping_add(1);
+        self.update_zero_and_negative_flags(self.x);
     }
 
     fn update_zero_and_negative_flags(&mut self, result: u8) {
@@ -127,11 +127,28 @@ mod tests {
     #[test]
     fn test_inx_works() {
         let mut cpu = CPU::new();
-        let program = vec![0xa9, 0x69, 0xe8, 0x00];
+        let program = vec![0xe8, 0x00];
         cpu.interpret(program);
 
-        assert_eq!(cpu.a, 0x6a);
+        assert_eq!(cpu.x, 0x01);
         assert_eq!(cpu.status & 0b0000_0010, 0b0000_0000);
         assert_eq!(cpu.status & 0b1000_0000, 0b0000_0000);
+    }
+
+    #[test]
+    fn test_5_ops_working_together() {
+        let mut cpu = CPU::new();
+        cpu.interpret(vec![0xa9, 0xc0, 0xaa, 0xe8, 0x00]);
+
+        assert_eq!(cpu.x, 0xc1)
+    }
+
+    #[test]
+    fn test_inx_overflow() {
+        let mut cpu = CPU::new();
+        cpu.x = 0xff;
+        cpu.interpret(vec![0xe8, 0xe8, 0x00]);
+
+        assert_eq!(cpu.x, 1)
     }
 }
