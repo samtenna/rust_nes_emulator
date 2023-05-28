@@ -1,6 +1,7 @@
 pub enum OpCode {
     LDA,
     TAX,
+    INX,
     BRK,
 }
 
@@ -9,6 +10,7 @@ impl OpCode {
         match val {
             0xa9 => OpCode::LDA,
             0xaa => OpCode::TAX,
+            0xe8 => OpCode::INX,
             0x00 => OpCode::BRK,
             _ => panic!("Unkown opcode"),
         }
@@ -42,6 +44,11 @@ impl CPU {
         self.update_zero_and_negative_flags(self.x);
     }
 
+    fn inx(&mut self) {
+        self.a += 1;
+        self.update_zero_and_negative_flags(self.a);
+    }
+
     fn update_zero_and_negative_flags(&mut self, result: u8) {
         // second LSB is the zero flag
         if result == 0 {
@@ -73,6 +80,7 @@ impl CPU {
                     self.lda(param);
                 }
                 OpCode::TAX => self.tax(),
+                OpCode::INX => self.inx(),
                 OpCode::BRK => return,
             }
         }
@@ -112,6 +120,17 @@ mod tests {
         cpu.interpret(program);
 
         assert_eq!(cpu.x, 0x69);
+        assert_eq!(cpu.status & 0b0000_0010, 0b0000_0000);
+        assert_eq!(cpu.status & 0b1000_0000, 0b0000_0000);
+    }
+
+    #[test]
+    fn test_inx_works() {
+        let mut cpu = CPU::new();
+        let program = vec![0xa9, 0x69, 0xe8, 0x00];
+        cpu.interpret(program);
+
+        assert_eq!(cpu.a, 0x6a);
         assert_eq!(cpu.status & 0b0000_0010, 0b0000_0000);
         assert_eq!(cpu.status & 0b1000_0000, 0b0000_0000);
     }
