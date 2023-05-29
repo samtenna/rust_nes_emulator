@@ -60,12 +60,22 @@ impl CPU {
 
     pub fn load_and_run(&mut self, program: Vec<u8>) {
         self.load(program);
+        self.reset();
         self.run();
     }
 
     pub fn load(&mut self, program: Vec<u8>) {
         self.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
-        self.program_counter = 0x8000;
+        // 0xfffc is where the program counter start address is read from
+        self.mem_write_u16(0xfffc, 0x8000);
+    }
+
+    pub fn reset(&mut self) {
+        self.a = 0;
+        self.x = 0;
+        self.status = 0;
+
+        self.program_counter = self.mem_read_u16(0xfffc);
     }
 
     fn lda(&mut self, value: u8) {
@@ -178,9 +188,10 @@ mod tests {
     #[test]
     fn test_inx_overflow() {
         let mut cpu = CPU::new();
-        cpu.x = 0xff;
-        cpu.load_and_run(vec![0xe8, 0xe8, 0x00]);
+        let mut program = vec![0xe8; 256];
+        program.push(0x00);
+        cpu.load_and_run(program);
 
-        assert_eq!(cpu.x, 1)
+        assert_eq!(cpu.x, 0)
     }
 }
