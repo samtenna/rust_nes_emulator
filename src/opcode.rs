@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 
 use crate::cpu::AddressingMode;
 
+#[derive(PartialEq, Debug)]
 pub struct OpCode {
     pub hex: u8,
     pub mnemonic: &'static str,
@@ -48,5 +49,25 @@ impl OpCode {
         }
 
         panic!("Invalid opcode");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_u8_works() {
+        let opcode = OpCode::from_u8(0xa5);
+        assert_eq!(
+            *opcode,
+            OpCode {
+                hex: 0xa5,
+                mnemonic: "LDA",
+                bytes: 2,
+                cycles: 3,
+                mode: AddressingMode::ZeroPage,
+            }
+        );
     }
 }
