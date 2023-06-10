@@ -131,6 +131,11 @@ impl CPU {
         self.update_zero_and_negative_flags(value);
     }
 
+    fn sta(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        self.mem_write(addr, self.a);
+    }
+
     fn tax(&mut self) {
         self.x = self.a;
         self.update_zero_and_negative_flags(self.x);
@@ -165,6 +170,7 @@ impl CPU {
 
             match opcode.mnemonic {
                 "LDA" => self.lda(&opcode.mode),
+                "STA" => self.sta(&opcode.mode),
                 "TAX" => self.tax(),
                 "INX" => self.inx(),
                 "BRK" => return,
@@ -219,6 +225,16 @@ mod tests {
         cpu.load_and_run(program);
 
         assert_eq!(cpu.a, 0x42);
+    }
+
+    #[test]
+    fn test_sta_works() {
+        let mut cpu = CPU::new();
+        cpu.mem_write(0x00, 42);
+        let program = vec![0xa5, 0x00, 0x85, 0x69, 0x00];
+        cpu.load_and_run(program);
+
+        assert_eq!(cpu.mem_read(0x69), 42);
     }
 
     #[test]
