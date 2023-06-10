@@ -1,25 +1,4 @@
-pub enum OpCode {
-    LDAImmediate,
-    LDAZeroPage,
-    LDAAbsolute,
-    TAX,
-    INX,
-    BRK,
-}
-
-impl OpCode {
-    pub fn from_u8(val: u8) -> OpCode {
-        match val {
-            0xa9 => OpCode::LDAImmediate,
-            0xa5 => OpCode::LDAZeroPage,
-            0xad => OpCode::LDAAbsolute,
-            0xaa => OpCode::TAX,
-            0xe8 => OpCode::INX,
-            0x00 => OpCode::BRK,
-            _ => panic!("Unkown opcode"),
-        }
-    }
-}
+use crate::opcode::OpCode;
 
 #[derive(Debug)]
 pub enum AddressingMode {
@@ -184,23 +163,15 @@ impl CPU {
             let opcode = OpCode::from_u8(self.mem_read(self.program_counter));
             self.program_counter += 1;
 
-            match opcode {
-                OpCode::LDAImmediate => {
-                    self.lda(&AddressingMode::Immediate);
-                    self.program_counter += 1;
-                }
-                OpCode::LDAZeroPage => {
-                    self.lda(&AddressingMode::ZeroPage);
-                    self.program_counter += 1;
-                }
-                OpCode::LDAAbsolute => {
-                    self.lda(&AddressingMode::Absolute);
-                    self.program_counter += 2;
-                }
-                OpCode::TAX => self.tax(),
-                OpCode::INX => self.inx(),
-                OpCode::BRK => return,
+            match opcode.mnemonic {
+                "LDA" => self.lda(&opcode.mode),
+                "TAX" => self.tax(),
+                "INX" => self.inx(),
+                "BRK" => return,
+                _ => unreachable!(),
             }
+
+            self.program_counter += opcode.bytes as u16 - 1;
         }
     }
 }
