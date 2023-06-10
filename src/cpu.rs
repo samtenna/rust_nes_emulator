@@ -1,5 +1,7 @@
 pub enum OpCode {
-    LDA,
+    LDAImmediate,
+    LDAZeroPage,
+    LDAAbsolute,
     TAX,
     INX,
     BRK,
@@ -8,7 +10,9 @@ pub enum OpCode {
 impl OpCode {
     pub fn from_u8(val: u8) -> OpCode {
         match val {
-            0xa9 => OpCode::LDA,
+            0xa9 => OpCode::LDAImmediate,
+            0xa5 => OpCode::LDAZeroPage,
+            0xad => OpCode::LDAAbsolute,
             0xaa => OpCode::TAX,
             0xe8 => OpCode::INX,
             0x00 => OpCode::BRK,
@@ -17,9 +21,24 @@ impl OpCode {
     }
 }
 
+#[derive(Debug)]
+pub enum AddressingMode {
+    Immediate,
+    ZeroPage,
+    ZeroPageX,
+    ZeroPageY,
+    Absolute,
+    AbsoluteX,
+    AbsoluteY,
+    IndirectX,
+    IndirectY,
+    NoneAddressing,
+}
+
 pub struct CPU {
     pub a: u8,
     pub x: u8,
+    pub y: u8,
     pub status: u8,
     pub program_counter: u16,
     memory: [u8; 0xffff],
@@ -30,6 +49,7 @@ impl CPU {
         Self {
             a: 0,
             x: 0,
+            y: 0,
             status: 0,
             program_counter: 0,
             memory: [0; 0xffff],
@@ -45,7 +65,7 @@ impl CPU {
     }
 
     // following two functions implement little endianness
-    fn mem_read_u16(&mut self, pos: u16) -> u16 {
+    fn mem_read_u16(&self, pos: u16) -> u16 {
         let lo = self.mem_read(pos) as u16;
         let hi = self.mem_read(pos + 1) as u16;
         (hi << 8) | (lo as u16)
@@ -78,7 +98,56 @@ impl CPU {
         self.program_counter = self.mem_read_u16(0xfffc);
     }
 
-    fn lda(&mut self, value: u8) {
+    fn get_operand_address(&self, mode: &AddressingMode) -> u16 {
+        match mode {
+            // immediate: current PC value
+            AddressingMode::Immediate => self.program_counter,
+            // zeropage: can only access first byte of addresses
+            AddressingMode::ZeroPage => self.mem_read(self.program_counter) as u16,
+            // absolute: full memory location
+            AddressingMode::Absolute => self.mem_read_u16(self.program_counter),
+            // zeropagex: first byte of addresses, but adds the value of X to the address first
+            AddressingMode::ZeroPageX => {
+                let pos = self.mem_read(self.program_counter);
+                pos.wrapping_add(self.x) as u16
+            }
+            // same as above but Y register
+            AddressingMode::ZeroPageY => {
+                let pos = self.mem_read(self.program_counter);
+                pos.wrapping_add(self.y) as u16
+            }
+            // absolute addressing but adding X and Y registers as above
+            AddressingMode::AbsoluteX => {
+                let base = self.mem_read_u16(self.program_counter);
+                base.wrapping_add(self.x as u16)
+            }
+            AddressingMode::AbsoluteY => {
+                let base = self.mem_read_u16(self.program_counter);
+                base.wrapping_add(self.y as u16)
+            }
+            // indirectx: take a zeropage address, add the value of X, look up the 2 byte address
+            // ??? why are you like this
+            AddressingMode::IndirectX => {
+                let base = self.mem_read(self.program_counter);
+                let ptr = (base as u8).wrapping_add(self.x);
+                self.mem_read_u16(ptr as u16)
+            }
+            // indirecty: zeropage address is dereferenced, then Y is added to the address
+            AddressingMode::IndirectY => {
+                let base = self.mem_read(self.program_counter);
+                let deref_base = self.mem_read_u16(base as u16);
+                deref_base.wrapping_add(self.y as u16)
+            }
+            AddressingMode::NoneAddressing => {
+                panic!("Invalid addressing mode {:?}", mode);
+            }
+        }
+    }
+
+    fn lda(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let value = self.mem_read(addr);
+
         self.a = value;
         self.update_zero_and_negative_flags(value);
     }
@@ -116,10 +185,17 @@ impl CPU {
             self.program_counter += 1;
 
             match opcode {
-                OpCode::LDA => {
-                    let param = self.mem_read(self.program_counter);
+                OpCode::LDAImmediate => {
+                    self.lda(&AddressingMode::Immediate);
                     self.program_counter += 1;
-                    self.lda(param);
+                }
+                OpCode::LDAZeroPage => {
+                    self.lda(&AddressingMode::ZeroPage);
+                    self.program_counter += 1;
+                }
+                OpCode::LDAAbsolute => {
+                    self.lda(&AddressingMode::Absolute);
+                    self.program_counter += 2;
                 }
                 OpCode::TAX => self.tax(),
                 OpCode::INX => self.inx(),
