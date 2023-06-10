@@ -232,6 +232,25 @@ mod tests {
     }
 
     #[test]
+    fn test_lda_works_from_memory() {
+        // zero page
+        let mut cpu = CPU::new();
+        cpu.mem_write(0x69, 0x42);
+        let program = vec![0xa5, 0x69];
+        cpu.load_and_run(program);
+
+        assert_eq!(cpu.a, 0x42);
+
+        // absolute
+        let mut cpu = CPU::new();
+        cpu.mem_write(0x69, 0x42);
+        let program = vec![0xad, 0x69, 0x00];
+        cpu.load_and_run(program);
+
+        assert_eq!(cpu.a, 0x42);
+    }
+
+    #[test]
     fn test_tax_works() {
         let mut cpu = CPU::new();
         let program = vec![0xa9, 0x69, 0xaa, 0x00];
