@@ -173,33 +173,33 @@ impl CPU {
     fn update_zero_and_negative_flags(&mut self, result: u8) {
         // second LSB is the zero flag
         if result == 0 {
-            self.status = self.status | 0b0000_0010;
+            self.status = self.status | ZERO_FLAG;
         } else {
-            self.status = self.status & 0b1111_1101;
+            self.status = self.status & !ZERO_FLAG;
         }
 
         // MSB is negative flag
         // if the new value of a is negative, ensure that the negative flag is set
         if result & 0b1000_0000 != 0 {
-            self.status = self.status | 0b1000_0000;
+            self.status = self.status | NEGATIVE_FLAG;
         } else {
-            self.status = self.status & 0b0111_1111;
+            self.status = self.status & !NEGATIVE_FLAG;
         }
     }
 
     fn update_overflow_flag(&mut self, overflow: bool) {
         if overflow {
-            self.status = self.status | 0b0100_0000;
+            self.status = self.status | OVERFLOW_FLAG;
         } else {
-            self.status = self.status & 0b1011_1111;
+            self.status = self.status & !OVERFLOW_FLAG;
         }
     }
 
     fn update_carry_flag(&mut self, carry: bool) {
         if carry {
-            self.status = self.status | 0b0000_0001;
+            self.status = self.status | CARRY_FLAG;
         } else {
-            self.status = self.status & 0b1111_1110;
+            self.status = self.status & !CARRY_FLAG;
         }
     }
 
