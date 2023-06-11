@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 use crate::opcode::OpCode;
 
 #[derive(Debug, PartialEq)]
@@ -13,6 +15,11 @@ pub enum AddressingMode {
     IndirectY,
     NoneAddressing,
 }
+
+const ZERO_FLAG: u8 = 0b0000_0010;
+const NEGATIVE_FLAG: u8 = 0b1000_0000;
+const CARRY_FLAG: u8 = 0b0000_0001;
+const OVERFLOW_FLAG: u8 = 0b0100_0000;
 
 pub struct CPU {
     pub a: u8,
@@ -123,6 +130,23 @@ impl CPU {
         }
     }
 
+    fn adc(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let value = self.mem_read(addr);
+
+        let previous_carry = self.status & CARRY_FLAG;
+        let res = self.a as u16 + value as u16 + previous_carry as u16;
+
+        let carry = res > 0xff;
+        self.update_carry_flag(carry);
+
+        let overflow = (self.a ^ res as u8) & (value ^ res as u8) & 0x80 != 0;
+        self.update_overflow_flag(overflow);
+
+        self.a = res as u8;
+        self.update_zero_and_negative_flags(res as u8);
+    }
+
     fn lda(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
@@ -163,12 +187,29 @@ impl CPU {
         }
     }
 
+    fn update_overflow_flag(&mut self, overflow: bool) {
+        if overflow {
+            self.status = self.status | 0b0100_0000;
+        } else {
+            self.status = self.status & 0b1011_1111;
+        }
+    }
+
+    fn update_carry_flag(&mut self, carry: bool) {
+        if carry {
+            self.status = self.status | 0b0000_0001;
+        } else {
+            self.status = self.status & 0b1111_1110;
+        }
+    }
+
     pub fn run(&mut self) {
         loop {
             let opcode = OpCode::from_u8(self.mem_read(self.program_counter));
             self.program_counter += 1;
 
             match opcode.mnemonic {
+                "ADC" => self.adc(&opcode.mode),
                 "LDA" => self.lda(&opcode.mode),
                 "STA" => self.sta(&opcode.mode),
                 "TAX" => self.tax(),
@@ -185,6 +226,23 @@ impl CPU {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_adc_immediate() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0x69, 0x05, 0x00]); // ADC #$05
+        cpu.run();
+        assert_eq!(cpu.a, 0x05);
+    }
+
+    #[test]
+    fn test_adc_memory() {
+        let mut cpu = CPU::new();
+        cpu.mem_write(0x10, 0x05);
+        cpu.load_and_run(vec![0x6d, 0x10, 0x00, 0x00]); // ADC $0010
+        cpu.run();
+        assert_eq!(cpu.a, 0x05);
+    }
 
     #[test]
     fn test_lda_works_immediate() {

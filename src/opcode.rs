@@ -13,6 +13,15 @@ pub struct OpCode {
 
 lazy_static! {
     pub static ref CPU_OP_CODES: Vec<OpCode> = vec![
+        // ADC
+        OpCode::new(0x69, "ADC", 2, 3, AddressingMode::Immediate),
+        OpCode::new(0x65, "ADC", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0x75, "ADC", 2, 4, AddressingMode::ZeroPageX),
+        OpCode::new(0x6d, "ADC", 3, 4, AddressingMode::Absolute),
+        OpCode::new(0x7d, "ADC", 3, 4 /* +1 if page crossed */, AddressingMode::AbsoluteY),
+        OpCode::new(0x79, "ADC", 3, 4 /* +1 if page crossed */, AddressingMode::AbsoluteY),
+        OpCode::new(0x61, "ADC", 2, 6, AddressingMode::IndirectX),
+        OpCode::new(0x71, "ADC", 2, 5 /* +2 if page crossed */, AddressingMode::IndirectY),
         // LDA
         OpCode::new(0xa9, "LDA", 2, 2, AddressingMode::Immediate),
         OpCode::new(0xa5, "LDA", 2, 3, AddressingMode::ZeroPage),
@@ -30,9 +39,11 @@ lazy_static! {
         OpCode::new(0x99, "STA", 3, 5, AddressingMode::AbsoluteY),
         OpCode::new(0x81, "STA", 2, 6, AddressingMode::IndirectX),
         OpCode::new(0x91, "STA", 2, 6, AddressingMode::IndirectY),
-        //
+        // TAX
         OpCode::new(0xaa, "TAX", 1, 2, AddressingMode::NoneAddressing),
+        // INX
         OpCode::new(0xe8, "INX", 1, 2, AddressingMode::NoneAddressing),
+        // BRK
         OpCode::new(0x00, "BRK", 1, 7, AddressingMode::NoneAddressing),
     ];
 }
