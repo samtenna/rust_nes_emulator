@@ -147,6 +147,14 @@ impl CPU {
         self.update_zero_and_negative_flags(res as u8);
     }
 
+    fn and(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let value = self.mem_read(addr);
+
+        self.a &= value;
+        self.update_zero_and_negative_flags(self.a);
+    }
+
     fn lda(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
@@ -210,6 +218,7 @@ impl CPU {
 
             match opcode.mnemonic {
                 "ADC" => self.adc(&opcode.mode),
+                "AND" => self.and(&opcode.mode),
                 "LDA" => self.lda(&opcode.mode),
                 "STA" => self.sta(&opcode.mode),
                 "TAX" => self.tax(),
@@ -242,6 +251,25 @@ mod tests {
         cpu.load_and_run(vec![0x6d, 0x10, 0x00, 0x00]); // ADC $0010
         cpu.run();
         assert_eq!(cpu.a, 0x05);
+    }
+
+    #[test]
+    fn test_and_immediate() {
+        let mut cpu = CPU::new();
+        cpu.load(vec![0x29, 0xaa, 0x00]);
+        cpu.a = 0b1010_1010;
+        cpu.run();
+        assert_eq!(cpu.a, 0b1010_1010);
+    }
+
+    #[test]
+    fn test_and_memory() {
+        let mut cpu = CPU::new();
+        cpu.mem_write(0x10, 0b1010_1010);
+        cpu.load(vec![0x2d, 0x10, 0x00, 0x00]);
+        cpu.a = 0b1010_1010;
+        cpu.run();
+        assert_eq!(cpu.a, 0b1010_1010);
     }
 
     #[test]
